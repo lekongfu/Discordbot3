@@ -1,0 +1,58 @@
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
+const logger = require('../utils/logger');
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('wl-channels')
+        .setDescription('Manage channels for W/L reactions')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('add')
+                .setDescription('Add a channel for W/L reactions')
+                .addChannelOption(option =>
+                    option
+                        .setName('channel')
+                        .setDescription('The channel to add')
+                        .setRequired(true)
+                        .addChannelTypes(ChannelType.GuildText)
+                )
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('remove')
+                .setDescription('Remove a channel from W/L reactions')
+                .addChannelOption(option =>
+                    option
+                        .setName('channel')
+                        .setDescription('The channel to remove')
+                        .setRequired(true)
+                        .addChannelTypes(ChannelType.GuildText)
+                )
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('list')
+                .setDescription('List all channels with W/L reactions enabled')
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('clear')
+                .setDescription('Remove all channels from W/L reactions')
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('status')
+                .setDescription('Show bot statistics and current configuration')
+        ),
+
+    async execute(interaction, { config, addChannel, removeChannel, isChannelEnabled }) {
+        const subcommand = interaction.options.getSubcommand();
+
+        try {
+            switch (subcommand) {
+                case 'add': {
+                    const channel = interaction.options.getChannel('channel');
+                    
+                    if (isChannelEnabled(channel.id)) {
+                        await interaction
