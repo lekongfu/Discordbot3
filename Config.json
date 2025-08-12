@@ -1,0 +1,28 @@
+{
+  "enabledChannels": [
+    "1404584842527506462"
+  ],
+  "contentFilters": {
+    "enabled": false,
+    "requiredKeywords": [],
+    "excludedKeywords": [],
+    "minLength": 0
+  },
+  "reactions": {
+    "winEmoji": "<:w_:1404760929534607482>",
+    "lossEmoji": "<:L_:1404761543656214629>",
+    "delayBetweenReactions": 100
+  },
+  "statistics": {
+    "totalReactions": 4,
+    "messagesProcessed": 2,
+    "failedReactions": 0,
+    "lastReactionTime": "2025-08-12T09:31:06.735Z",
+    "botStartTime": null
+  },
+  "settings": {
+    "logLevel": "info",
+    "autoSaveConfig": true,
+    "rateLimitHandling": true
+  }
+}
