@@ -88,6 +88,10 @@ client.on('ready', () => {
     
     // Set bot status
     client.user.setActivity('for W/L reactions', { type: 'WATCHING' });
+    
+    // Update statistics
+    config.statistics.botStartTime = new Date().toISOString();
+    saveConfig();
 });
 
 // Message create event - main functionality
@@ -124,52 +128,62 @@ client.on('messageCreate', async (message) => {
     
     // Add reactions
     try {
+        // Add win emoji
         await message.react(config.reactions.winEmoji);
-        await message.react(config.reactions.lossEmoji);
         
-        logger.info(`✅ Added W/L reactions to message in #${message.channel.name} (${message.channel.id})`);
+        // Optional delay between reactions
+        if (config.reactions.delayBetweenReactions > 0) {
+            await new Promise(resolve => setTimeout(resolve, config.reactions.delayBetweenReactions));
+        }
+        
+        // Add loss emoji
+        await message.react(config.reactions.lossEmoji);
         
         // Update statistics
         config.statistics.totalReactions += 2;
         config.statistics.messagesProcessed += 1;
         config.statistics.lastReactionTime = new Date().toISOString();
         
-        // Save stats every 10 reactions to avoid excessive file writes
-        if (config.statistics.totalReactions % 10 === 0) {
+        // Auto-save if enabled
+        if (config.settings.autoSaveConfig) {
             saveConfig();
         }
         
+        logger.info(`Added W/L reactions to message in ${message.channel.name} by ${message.author.tag}`);
+        
     } catch (error) {
-        logger.error(`❌ Failed to add reactions to message in #${message.channel.name}:`, error.message);
-        
-        // Common error handling
-        if (error.code === 10008) {
-            logger.warn('Message was deleted before reactions could be added');
-        } else if (error.code === 50013) {
-            logger.error('Missing permissions to add reactions in this channel');
-        } else if (error.code === 30010) {
-            logger.warn('Maximum number of reactions reached on this message');
-        }
-        
         config.statistics.failedReactions += 1;
+        logger.error(`Failed to add reactions: ${error.message}`);
+        
+        // Handle rate limiting
+        if (error.code === 50013) {
+            logger.warn('Missing permissions to add reactions');
+        } else if (error.code === 429) {
+            logger.warn('Rate limited - reactions temporarily disabled');
+        }
     }
 });
 
-// Handle slash commands
+// Interaction create event - handle slash commands
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
-    
+
     const command = client.commands.get(interaction.commandName);
-    
+
     if (!command) {
-        logger.error(`No command matching ${interaction.commandName} was found.`);
+        logger.warn(`Unknown command: ${interaction.commandName}`);
         return;
     }
-    
+
     try {
-        await command.execute(interaction, { config, addChannel, removeChannel, isChannelEnabled });
+        await command.execute(interaction, { 
+            config, 
+            addChannel, 
+            removeChannel, 
+            isChannelEnabled 
+        });
     } catch (error) {
-        logger.error('Error executing command:', error);
+        logger.error(`Error executing command ${interaction.commandName}:`, error);
         
         const errorMessage = 'There was an error while executing this command!';
         
@@ -186,35 +200,14 @@ client.on('error', (error) => {
     logger.error('Discord client error:', error);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+process.on('unhandledRejection', (error) => {
+    logger.error('Unhandled promise rejection:', error);
 });
 
 process.on('uncaughtException', (error) => {
-    logger.error('Uncaught Exception:', error);
+    logger.error('Uncaught exception:', error);
     process.exit(1);
-});
-
-// Graceful shutdown
-process.on('SIGINT', () => {
-    logger.info('Received SIGINT, shutting down gracefully...');
-    saveConfig();
-    client.destroy();
-    process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-    logger.info('Received SIGTERM, shutting down gracefully...');
-    saveConfig();
-    client.destroy();
-    process.exit(0);
 });
 
 // Login to Discord
-client.login(TOKEN).catch(error => {
-    logger.error('Failed to login to Discord:', error.message);
-    process.exit(1);
-});
-
-// Export for potential testing
-module.exports = { client, config, addChannel, removeChannel, isChannelEnabled };
+client.login(TOKEN);
